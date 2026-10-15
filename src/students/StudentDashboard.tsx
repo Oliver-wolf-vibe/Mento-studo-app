@@ -7,7 +7,8 @@ import { MentorSearchTab } from './MentorSearchTab';
 import { StudentRequestsTab } from './StudentRequestsTab';
 import { StudentMatchesTab } from './StudentMatchesTab';
 import { StudentFeedbackTab } from './StudentFeedbackTab';
-import { GraduationCap, Search, Send, Users, Star } from 'lucide-react';
+import { StudentProgressTab } from './StudentProgressTab';
+import { GraduationCap, Search, Send, Users, Star, Target } from 'lucide-react';
 
 const navItems: NavItem[] = [
   { id: 'profile', label: 'My Profile', icon: GraduationCap },
@@ -15,6 +16,7 @@ const navItems: NavItem[] = [
   { id: 'requests', label: 'My Requests', icon: Send },
   { id: 'matches', label: 'My Mentors', icon: Users },
   { id: 'feedback', label: 'Feedback', icon: Star },
+  { id: 'progress', label: 'Progress', icon: Target },
 ];
 
 export function StudentDashboard() {
@@ -49,6 +51,7 @@ export function StudentDashboard() {
           onProfileSaved={() => {
             setHasProfile(true);
             checkProfile();
+            setActiveTab('search');
           }}
         />
       )}
@@ -56,6 +59,7 @@ export function StudentDashboard() {
       {activeTab === 'requests' && <StudentRequestsTab />}
       {activeTab === 'matches' && <StudentMatchesTab />}
       {activeTab === 'feedback' && <StudentFeedbackTab />}
+      {activeTab === 'progress' && <StudentProgressTab />}
     </DashboardLayout>
   );
 }

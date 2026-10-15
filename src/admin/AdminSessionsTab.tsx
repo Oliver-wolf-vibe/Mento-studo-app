@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
 import { Card, Badge, EmptyState, Spinner, Select } from '@/components/ui';
 import type { Session, Profile } from '@/lib/types';
 import { Calendar, MapPin, Clock } from 'lucide-react';
@@ -18,11 +19,19 @@ export function AdminSessionsTab() {
     setLoading(true);
     let query = supabase
       .from('sessions')
-      .select('*, mentor_profile:profiles!sessions_mentor_id_fkey(*), student_profile:profiles!sessions_student_id_fkey(*)')
+      .select('*')
       .order('session_date', { ascending: false });
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     const { data } = await query;
-    if (data) setSessions(data as SessionWithProfiles[]);
+    if (data) {
+      const sessionRows = data as Session[];
+      const { profiles } = await fetchProfilesByIds(sessionRows.flatMap((session) => [session.mentor_id, session.student_id]));
+      setSessions(sessionRows.map((session) => ({
+        ...session,
+        mentor_profile: profiles.get(session.mentor_id),
+        student_profile: profiles.get(session.student_id),
+      })));
+    }
     setLoading(false);
   }, [statusFilter]);
 

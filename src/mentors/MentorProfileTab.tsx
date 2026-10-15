@@ -3,7 +3,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Button, Input, Select, Textarea, Card, Badge } from '@/components/ui';
 import type { MentorProfile } from '@/lib/types';
-import { Upload, Check, X, Plus, Linkedin, Clock, Users, MapPin } from 'lucide-react';
+import { Upload, Check, X, Plus, Clock } from 'lucide-react';
 
 const DEPARTMENTS = [
   'Computer Science Engineering',

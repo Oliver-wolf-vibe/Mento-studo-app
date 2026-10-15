@@ -183,6 +183,7 @@ export function StudentProfileTab({ hasProfile, onProfileSaved }: Props) {
     setSaving(true);
     setError(null);
     setSuccess(false);
+    let saveError: string | null = null;
 
     const { error: profileError } = await supabase
       .from('profiles')
@@ -211,15 +212,17 @@ export function StudentProfileTab({ hasProfile, onProfileSaved }: Props) {
         .from('student_profiles')
         .update(payload)
         .eq('user_id', profile.id);
-      if (updateError) setError(updateError.message);
+      if (updateError) saveError = updateError.message;
     } else {
       const { error: insertError } = await supabase
         .from('student_profiles')
         .insert(payload);
-      if (insertError) setError(insertError.message);
+      if (insertError) saveError = insertError.message;
     }
 
-    if (!error) {
+    if (saveError) {
+      setError(saveError);
+    } else {
       setSuccess(true);
       await refreshProfile();
       onProfileSaved();

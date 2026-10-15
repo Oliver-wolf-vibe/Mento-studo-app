@@ -13,15 +13,39 @@ export function AdminApprovalsTab() {
   const { profile } = useAuth();
   const [mentors, setMentors] = useState<MentorWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [queryError, setQueryError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchMentors = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    setQueryError(null);
+    const { data, error } = await supabase
       .from('mentor_profiles')
-      .select('*, profiles!mentor_profiles_user_id_fkey(*)')
+      .select('*')
       .order('created_at', { ascending: false });
-    if (data) setMentors(data as MentorWithProfile[]);
+    if (error) {
+      setMentors([]);
+      setQueryError(error.message);
+    } else if (data) {
+      const mentorRows = data as MentorProfile[];
+      const userIds = mentorRows.map((mentor) => mentor.user_id);
+      const { data: profileRows, error: profileError } = userIds.length > 0
+        ? await supabase
+          .from('profiles')
+          .select('id, email, full_name, role, avatar_url, phone, is_active, created_at, updated_at')
+          .in('id', userIds)
+        : { data: [], error: null };
+
+      if (profileError) {
+        setQueryError(`Mentor applications loaded, but profile names could not be loaded: ${profileError.message}`);
+      }
+
+      const profilesById = new Map((profileRows || []).map((participant) => [participant.id, participant as Profile]));
+      setMentors(mentorRows.map((mentor) => ({
+        ...mentor,
+        profiles: profilesById.get(mentor.user_id),
+      })));
+    }
     setLoading(false);
   }, []);
 
@@ -132,6 +156,19 @@ export function AdminApprovalsTab() {
 
   return (
     <div className="space-y-6">
+      <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+        <h3 className="text-white font-semibold text-sm">Mentor applications</h3>
+        <p className="text-white/40 text-xs mt-1">
+          Mentor applications are stored in mentor profiles. Student mentorship requests appear under “All Requests”.
+        </p>
+      </div>
+
+      {queryError && (
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+          Could not load mentor applications: {queryError}
+        </div>
+      )}
+
       {pending.length > 0 && (
         <div>
           <h3 className="text-white/70 text-sm font-medium mb-3 flex items-center gap-2">

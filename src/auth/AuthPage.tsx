@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { Logo } from '@/components/Logo';
-import { Button, Input, Select } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
 import type { UserRole } from '@/lib/types';
-import { GraduationCap, Users, Shield, Sparkles, ArrowRight } from 'lucide-react';
+import { GraduationCap, Users, Sparkles, ArrowRight } from 'lucide-react';
+
+type SignupRole = Exclude<UserRole, 'admin'>;
 
 export function AuthPage() {
   const { signIn, signUp } = useAuth();
@@ -11,7 +13,7 @@ export function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('student');
+  const [role, setRole] = useState<SignupRole>('student');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -43,9 +45,8 @@ export function AuthPage() {
   };
 
   const roleOptions = [
-    { value: 'student', label: 'Student', icon: GraduationCap, desc: 'Find mentors and grow your career' },
-    { value: 'mentor', label: 'Mentor', icon: Users, desc: 'Guide students and share expertise' },
-    { value: 'admin', label: 'Admin', icon: Shield, desc: 'Manage the platform' },
+    { value: 'student' as const, label: 'Student', icon: GraduationCap, desc: 'Find mentors and grow your career' },
+    { value: 'mentor' as const, label: 'Mentor', icon: Users, desc: 'Guide students and share expertise' },
   ];
 
   return (
@@ -128,28 +129,29 @@ export function AuthPage() {
             {mode === 'signup' && (
               <div>
                 <label className="block text-sm font-medium text-white/70 mb-2">I am a</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {roleOptions.map((opt) => {
-                    const Icon = opt.icon;
+                <div className="grid grid-cols-2 gap-2">
+                  {roleOptions.map((option) => {
+                    const Icon = option.icon;
                     return (
                       <button
-                        key={opt.value}
+                        key={option.value}
                         type="button"
-                        onClick={() => setRole(opt.value as UserRole)}
+                        onClick={() => setRole(option.value)}
                         className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all ${
-                          role === opt.value
+                          role === option.value
                             ? 'border-white bg-white/10 text-white'
                             : 'border-white/10 text-white/40 hover:border-white/20 hover:text-white/60'
                         }`}
                       >
                         <Icon size={20} />
-                        <span className="text-xs font-medium">{opt.label}</span>
+                        <span className="text-xs font-medium">{option.label}</span>
                       </button>
                     );
                   })}
                 </div>
                 <p className="text-xs text-white/40 mt-2">
-                  {roleOptions.find((r) => r.value === role)?.desc}
+                  {roleOptions.find((option) => option.value === role)?.desc}
+                  {role === 'mentor' && ' Mentor profiles require administrator approval.'}
                 </p>
               </div>
             )}

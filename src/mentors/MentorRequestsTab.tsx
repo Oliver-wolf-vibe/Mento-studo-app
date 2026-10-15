@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, Badge, EmptyState, Spinner, Button, Modal, Input, Textarea } from '@/components/ui';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
+import { Card, Badge, EmptyState, Spinner, Button, Modal, Input } from '@/components/ui';
 import type { MentorshipRequest, Profile, StudentProfile } from '@/lib/types';
 import { Inbox, Clock, Check, X, Calendar, GraduationCap } from 'lucide-react';
 
@@ -25,10 +26,17 @@ export function MentorRequestsTab() {
     setLoading(true);
     const { data } = await supabase
       .from('mentorship_requests')
-      .select('*, student_profile:profiles!mentorship_requests_student_id_fkey(*)')
+      .select('*')
       .eq('mentor_id', profile.id)
       .order('created_at', { ascending: false });
-    if (data) setRequests(data as RequestWithStudent[]);
+    if (data) {
+      const requestRows = data as MentorshipRequest[];
+      const { profiles } = await fetchProfilesByIds(requestRows.map((request) => request.student_id));
+      setRequests(requestRows.map((request) => ({
+        ...request,
+        student_profile: profiles.get(request.student_id),
+      })));
+    }
     setLoading(false);
   }, [profile]);
 
@@ -99,6 +107,7 @@ export function MentorRequestsTab() {
         type: 'request_declined',
         title: `Request declined by ${profile.full_name}`,
         body: 'Your mentorship request was declined. Try finding another mentor.',
+        related_id: req.id,
       });
     }
     setActionLoading(null);
