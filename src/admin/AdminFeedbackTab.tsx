@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
 import { Card, EmptyState, Spinner } from '@/components/ui';
 import type { Feedback, Profile } from '@/lib/types';
 import { Star, TrendingUp, MessageSquare, Award } from 'lucide-react';
@@ -27,10 +28,16 @@ export function AdminFeedbackTab() {
     setLoading(true);
     const { data } = await supabase
       .from('feedback')
-      .select('*, mentor_profile:profiles!feedback_mentor_id_fkey(*), student_profile:profiles!feedback_student_id_fkey(*)')
+      .select('*')
       .order('created_at', { ascending: false });
     if (data) {
-      const fbs = data as FeedbackWithProfiles[];
+      const feedbackRows = data as Feedback[];
+      const { profiles } = await fetchProfilesByIds(feedbackRows.flatMap((feedback) => [feedback.mentor_id, feedback.student_id]));
+      const fbs = feedbackRows.map((feedback) => ({
+        ...feedback,
+        mentor_profile: profiles.get(feedback.mentor_id),
+        student_profile: profiles.get(feedback.student_id),
+      })) as FeedbackWithProfiles[];
       setFeedbacks(fbs);
       setTotalFeedback(fbs.length);
 

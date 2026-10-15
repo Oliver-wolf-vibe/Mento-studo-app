@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
 import { Card, Badge, EmptyState, Button, Spinner } from '@/components/ui';
 import type { MentorshipRequest, Profile } from '@/lib/types';
 import { Send, Clock, Check, X, Calendar } from 'lucide-react';
@@ -13,18 +14,39 @@ export function StudentRequestsTab() {
   const { profile } = useAuth();
   const [requests, setRequests] = useState<RequestWithMentor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmingRequest, setConfirmingRequest] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchRequests = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     const { data } = await supabase
       .from('mentorship_requests')
-      .select('*, mentor_profile:profiles!mentorship_requests_mentor_id_fkey(*)')
+      .select('*')
       .eq('student_id', profile.id)
       .order('created_at', { ascending: false });
-    if (data) setRequests(data as RequestWithMentor[]);
+    if (data) {
+      const requestRows = data as MentorshipRequest[];
+      const { profiles } = await fetchProfilesByIds(requestRows.map((request) => request.mentor_id));
+      setRequests(requestRows.map((request) => ({
+        ...request,
+        mentor_profile: profiles.get(request.mentor_id),
+      })));
+    }
     setLoading(false);
   }, [profile]);
+
+  const confirmProposedTime = async (requestId: string) => {
+    setConfirmingRequest(requestId);
+    setActionError(null);
+    const { error } = await supabase.rpc('confirm_mentorship_request', { p_request_id: requestId });
+    if (error) {
+      setActionError(error.message);
+    } else {
+      await fetchRequests();
+    }
+    setConfirmingRequest(null);
+  };
 
   useEffect(() => {
     fetchRequests();
@@ -77,6 +99,11 @@ export function StudentRequestsTab() {
 
   return (
     <div className="space-y-3">
+      {actionError && (
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+          {actionError}
+        </div>
+      )}
       {requests.map((req) => {
         const config = statusConfig[req.status];
         const StatusIcon = config.icon;
@@ -120,6 +147,15 @@ export function StudentRequestsTab() {
                 <p className="text-white/80 text-sm">
                   {new Date(req.proposed_time).toLocaleString()}
                 </p>
+                <Button
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => confirmProposedTime(req.id)}
+                  disabled={confirmingRequest === req.id}
+                >
+                  {confirmingRequest === req.id ? <Spinner className="w-3 h-3" /> : <Check size={14} />}
+                  Confirm Session
+                </Button>
               </div>
             )}
 

@@ -3,11 +3,13 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Profile, UserRole } from '@/lib/types';
 
+type SignupRole = Exclude<UserRole, 'admin'>;
+
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, role: SignupRole) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -61,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   const signUp = useCallback(
-    async (email: string, password: string, fullName: string, role: UserRole) => {
+    async (email: string, password: string, fullName: string, role: SignupRole) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

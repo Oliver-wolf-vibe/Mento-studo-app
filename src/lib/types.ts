@@ -113,6 +113,34 @@ export interface Feedback {
   created_at: string;
 }
 
+export interface ProgressUpdate {
+  id: string;
+  student_id: string;
+  match_id: string;
+  session_id: string | null;
+  title: string;
+  body: string;
+  evidence_url: string | null;
+  mentor_advice: string | null;
+  created_at: string;
+  updated_at: string;
+  mentor_profile?: Profile;
+}
+
+export type PointEventType = 'session_completed' | 'feedback_submitted' | 'progress_posted';
+
+export interface PointLedgerEntry {
+  id: string;
+  user_id: string;
+  event_type: PointEventType;
+  points: number;
+  reference_id: string;
+  idempotency_key: string;
+  created_at: string;
+}
+
+export type RecognitionTier = 'Getting Started' | 'Committed' | 'Momentum Builder' | 'Role Model';
+
 export type NotificationType =
   | 'new_request'
   | 'request_accepted'

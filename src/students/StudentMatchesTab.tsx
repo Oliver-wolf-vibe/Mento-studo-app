@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, Badge, EmptyState, Spinner, Modal, Button, Input, Select, Textarea } from '@/components/ui';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
+import { Card, Badge, EmptyState, Spinner, Modal, Button, Textarea } from '@/components/ui';
 import { MessageThread } from '@/messages/MessageThread';
-import type { Match, Profile, Session, Feedback } from '@/lib/types';
+import type { Match, Profile, Session } from '@/lib/types';
 import { Users, MessageSquare, Calendar, Star, MapPin, Clock } from 'lucide-react';
 
 interface MatchWithProfiles extends Match {
@@ -64,16 +65,23 @@ function SessionsTab({ match, isStudent }: SessionTabProps) {
     if (!feedbackSession || !profile) return;
     setSubmitting(true);
 
-    const { error } = await supabase.from('feedback').insert({
+    const { data: feedbackData, error } = await supabase.from('feedback').insert({
       session_id: feedbackSession.id,
       match_id: match.id,
       student_id: profile.id,
       mentor_id: match.mentor_id,
       rating,
       comment: comment.trim() || null,
-    });
+    }).select('id').single();
 
-    if (!error) {
+    if (!error && feedbackData) {
+      await supabase.rpc('award_points', {
+        p_user_id: profile.id,
+        p_event_type: 'feedback_submitted',
+        p_points: 10,
+        p_reference_id: feedbackData.id,
+        p_idempotency_key: `feedback_submitted:${feedbackSession.id}`,
+      });
       await supabase.from('notifications').insert({
         user_id: match.mentor_id,
         type: 'new_feedback',
@@ -218,10 +226,17 @@ export function StudentMatchesTab() {
     setLoading(true);
     const { data } = await supabase
       .from('matches')
-      .select('*, mentor_profile:profiles!matches_mentor_id_fkey(*), student_profile:profiles!matches_student_id_fkey(*)')
+      .select('*')
       .eq('student_id', profile.id)
       .order('created_at', { ascending: false });
-    if (data) setMatches(data as MatchWithProfiles[]);
+    if (data) {
+      const matchRows = data as Match[];
+      const { profiles } = await fetchProfilesByIds(matchRows.map((match) => match.mentor_id));
+      setMatches(matchRows.map((match) => ({
+        ...match,
+        mentor_profile: profiles.get(match.mentor_id),
+      })));
+    }
     setLoading(false);
   }, [profile]);
 

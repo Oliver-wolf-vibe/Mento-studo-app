@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, Badge, EmptyState, Spinner, Button, Modal, Input, Select, Textarea } from '@/components/ui';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
+import { Card, Badge, EmptyState, Spinner, Button, Modal, Input, Textarea } from '@/components/ui';
 import { MessageThread } from '@/messages/MessageThread';
 import type { Match, Profile, Session } from '@/lib/types';
 import { Send, Calendar, MapPin, Clock, MessageSquare, Plus, Check, X } from 'lucide-react';
@@ -32,10 +33,17 @@ export function MentorMatchesTab() {
     setLoading(true);
     const { data } = await supabase
       .from('matches')
-      .select('*, mentor_profile:profiles!matches_mentor_id_fkey(*), student_profile:profiles!matches_student_id_fkey(*)')
+      .select('*')
       .eq('mentor_id', profile.id)
       .order('created_at', { ascending: false });
-    if (data) setMatches(data as MatchWithProfiles[]);
+    if (data) {
+      const matchRows = data as Match[];
+      const { profiles } = await fetchProfilesByIds(matchRows.map((match) => match.student_id));
+      setMatches(matchRows.map((match) => ({
+        ...match,
+        student_profile: profiles.get(match.student_id),
+      })));
+    }
     setLoading(false);
   }, [profile]);
 
@@ -89,15 +97,11 @@ export function MentorMatchesTab() {
   };
 
   const updateSessionStatus = async (session: Session, status: Session['status']) => {
-    const { error } = await supabase.from('sessions').update({ status }).eq('id', session.id);
+    const { error } = await supabase.rpc('update_session_status', {
+      p_session_id: session.id,
+      p_status: status,
+    });
     if (!error && selectedMatch) {
-      await supabase.from('notifications').insert({
-        user_id: selectedMatch.student_id,
-        type: 'session_updated',
-        title: `Session ${status}`,
-        body: `"${session.title}" has been marked as ${status}.`,
-        related_id: session.id,
-      });
       fetchSessions(selectedMatch.id);
     }
   };
@@ -198,6 +202,59 @@ export function MentorMatchesTab() {
                 );
               })
             )}
+
+            <Modal
+              open={showScheduleModal}
+              onClose={() => setShowScheduleModal(false)}
+              title="Schedule Mentoring Session"
+            >
+              <div className="space-y-4">
+                <Input
+                  label="Session title"
+                  value={sessionTitle}
+                  onChange={(event) => setSessionTitle(event.target.value)}
+                  required
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Date"
+                    type="date"
+                    value={sessionDate}
+                    onChange={(event) => setSessionDate(event.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Time"
+                    type="time"
+                    value={sessionTime}
+                    onChange={(event) => setSessionTime(event.target.value)}
+                    required
+                  />
+                </div>
+                <Input
+                  label="Classroom (optional)"
+                  value={classroomNumber}
+                  onChange={(event) => setClassroomNumber(event.target.value)}
+                  placeholder="e.g. Room 204 or Online"
+                />
+                <Textarea
+                  label="Notes (optional)"
+                  value={sessionNotes}
+                  onChange={(event) => setSessionNotes(event.target.value)}
+                  placeholder="Add an agenda or preparation notes..."
+                  rows={3}
+                />
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={handleScheduleSession}
+                  disabled={savingSession || !sessionDate || !sessionTime || !sessionTitle.trim()}
+                >
+                  {savingSession ? <Spinner className="w-4 h-4" /> : <Calendar size={16} />}
+                  Schedule Session
+                </Button>
+              </div>
+            </Modal>
           </div>
         ) : (
           <Card className="overflow-hidden">

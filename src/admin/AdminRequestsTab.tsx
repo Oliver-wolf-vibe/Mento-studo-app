@@ -12,21 +12,51 @@ interface RequestWithProfiles extends MentorshipRequest {
 export function AdminRequestsTab() {
   const [requests, setRequests] = useState<RequestWithProfiles[]>([]);
   const [loading, setLoading] = useState(true);
+  const [queryError, setQueryError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from('mentorship_requests')
-      .select('*, student_profile:profiles!mentorship_requests_student_id_fkey(*), mentor_profile:profiles!mentorship_requests_mentor_id_fkey(*)')
-      .order('created_at', { ascending: false });
+    setQueryError(null);
+    let query = supabase.from('mentorship_requests').select('*').order('created_at', { ascending: false });
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
-    const { data } = await query;
-    if (data) setRequests(data as RequestWithProfiles[]);
+    const { data, error } = await query;
+    if (error) {
+      setRequests([]);
+      setQueryError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    const requestRows = (data || []) as MentorshipRequest[];
+    const profileIds = [...new Set(requestRows.flatMap((request) => [request.student_id, request.mentor_id]))];
+    const { data: profileRows, error: profileError } = profileIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name, email, role, avatar_url, phone, is_active, created_at, updated_at').in('id', profileIds)
+      : { data: [], error: null };
+
+    if (profileError) {
+      setRequests(requestRows as RequestWithProfiles[]);
+      setQueryError(`Requests loaded, but participant names could not be loaded: ${profileError.message}`);
+    } else {
+      const profilesById = new Map((profileRows || []).map((participant) => [participant.id, participant as Profile]));
+      setRequests(requestRows.map((request) => ({
+        ...request,
+        student_profile: profilesById.get(request.student_id),
+        mentor_profile: profilesById.get(request.mentor_id),
+      })));
+    }
     setLoading(false);
   }, [statusFilter]);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  useEffect(() => {
+    fetchRequests();
+    const channel = supabase
+      .channel('admin-mentorship-requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mentorship_requests' }, () => fetchRequests())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchRequests]);
 
   const statusConfig = {
     pending: { label: 'Pending', variant: 'warning' as const, icon: Clock },
@@ -41,6 +71,11 @@ export function AdminRequestsTab() {
 
   return (
     <div className="space-y-4">
+      {queryError && (
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+          {queryError}
+        </div>
+      )}
       <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="max-w-xs">
         <option value="all">All Statuses</option>
         <option value="pending">Pending</option>

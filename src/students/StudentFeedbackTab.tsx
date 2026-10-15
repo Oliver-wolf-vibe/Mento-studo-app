@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, Badge, EmptyState, Spinner } from '@/components/ui';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
+import { Card, EmptyState, Spinner } from '@/components/ui';
 import type { Feedback, Profile, Session } from '@/lib/types';
 import { Star } from 'lucide-react';
 
@@ -22,10 +23,17 @@ export function StudentFeedbackTab() {
 
     const { data: fbs } = await supabase
       .from('feedback')
-      .select('*, mentor_profile:profiles!feedback_mentor_id_fkey(*), session:sessions!feedback_session_id_fkey(*)')
+      .select('*, session:sessions!feedback_session_id_fkey(*)')
       .eq('student_id', profile.id)
       .order('created_at', { ascending: false });
-    if (fbs) setFeedbacks(fbs as FeedbackWithDetails[]);
+    if (fbs) {
+      const feedbackRows = fbs as FeedbackWithDetails[];
+      const { profiles } = await fetchProfilesByIds(feedbackRows.map((feedback) => feedback.mentor_id));
+      setFeedbacks(feedbackRows.map((feedback) => ({
+        ...feedback,
+        mentor_profile: profiles.get(feedback.mentor_id),
+      })));
+    }
 
     // Find completed sessions without feedback
     const { data: sessions } = await supabase

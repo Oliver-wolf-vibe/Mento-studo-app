@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Button, Input, Select, Card, Badge, Modal, Textarea, EmptyState, Spinner } from '@/components/ui';
+import { fetchProfilesByIds } from '@/lib/profileLookup';
+import { Button, Select, Card, Badge, Modal, Textarea, EmptyState, Spinner } from '@/components/ui';
 import type { MentorProfile, Profile } from '@/lib/types';
-import { Search, Linkedin, MapPin, Clock, Users, Send, Filter } from 'lucide-react';
+import { Search, Linkedin, MapPin, Users, Send, Filter } from 'lucide-react';
 
 interface MentorWithProfile extends MentorProfile {
   profiles?: Profile;
@@ -27,7 +28,7 @@ export function MentorSearchTab() {
     setLoading(true);
     let query = supabase
       .from('mentor_profiles')
-      .select('*, profiles!mentor_profiles_user_id_fkey(*)')
+      .select('*')
       .eq('is_approved', true)
       .order('created_at', { ascending: false });
 
@@ -40,7 +41,12 @@ export function MentorSearchTab() {
 
     const { data } = await query;
     if (data) {
-      let filtered = data as MentorWithProfile[];
+      const mentorRows = data as MentorProfile[];
+      const { profiles } = await fetchProfilesByIds(mentorRows.map((mentor) => mentor.user_id));
+      let filtered = mentorRows.map((mentor) => ({
+        ...mentor,
+        profiles: profiles.get(mentor.user_id),
+      })) as MentorWithProfile[];
 
       if (filterExpertise !== 'all') {
         filtered = filtered.filter((m) =>
@@ -73,19 +79,20 @@ export function MentorSearchTab() {
     if (!selectedMentor || !profile || !requestGoal.trim() || !requestMessage.trim()) return;
     setSending(true);
 
-    const { error } = await supabase.from('mentorship_requests').insert({
+    const { data: requestData, error } = await supabase.from('mentorship_requests').insert({
       student_id: profile.id,
       mentor_id: selectedMentor.user_id,
       goal: requestGoal.trim(),
       message: requestMessage.trim(),
-    });
+    }).select('id').single();
 
-    if (!error) {
+    if (!error && requestData) {
       await supabase.from('notifications').insert({
         user_id: selectedMentor.user_id,
         type: 'new_request',
         title: `New mentorship request from ${profile.full_name}`,
         body: requestGoal.trim().substring(0, 80),
+        related_id: requestData.id,
       });
       setSendSuccess(true);
       setTimeout(() => {
