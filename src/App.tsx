@@ -4,16 +4,21 @@ import { StudentDashboard } from '@/students/StudentDashboard';
 import { MentorDashboard } from '@/mentors/MentorDashboard';
 import { AdminDashboard } from '@/admin/AdminDashboard';
 import { PageLoader } from '@/components/ui';
+import { LandingPage } from '@/public/LandingPage';
+import { useState } from 'react';
 
 function AppContent() {
   const { session, profile, loading } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
 
   if (loading) {
     return <PageLoader />;
   }
 
   if (!session || !profile) {
-    return <AuthPage />;
+    return showAuth
+      ? <AuthPage onBackToLanding={() => setShowAuth(false)} />
+      : <LandingPage onGetStarted={() => setShowAuth(true)} onSignIn={() => setShowAuth(true)} />;
   }
 
   if (profile.role === 'student') {
