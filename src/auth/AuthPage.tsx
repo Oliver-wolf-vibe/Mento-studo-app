@@ -3,11 +3,15 @@ import { useAuth } from '@/auth/AuthContext';
 import { Logo } from '@/components/Logo';
 import { Button, Input } from '@/components/ui';
 import type { UserRole } from '@/lib/types';
-import { GraduationCap, Users, Sparkles, ArrowRight } from 'lucide-react';
+import { GraduationCap, Users, Sparkles, ArrowRight, BookOpen, Route, UsersRound } from 'lucide-react';
 
 type SignupRole = Exclude<UserRole, 'admin'>;
 
-export function AuthPage() {
+interface AuthPageProps {
+  onBackToLanding?: () => void;
+}
+
+export function AuthPage({ onBackToLanding }: AuthPageProps) {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -50,34 +54,33 @@ export function AuthPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black bg-grid flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Ambient glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-white/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-white/3 blur-[100px] rounded-full pointer-events-none" />
+    <div className="theme-page bg-grid flex items-center justify-center p-4 sm:p-8 relative overflow-hidden">
+      <div className="absolute left-[8%] top-[14%] hidden rotate-[-12deg] text-slate-900/20 md:block"><BookOpen size={30} strokeWidth={1.5} /></div>
+      <div className="absolute right-[11%] top-[22%] hidden rotate-[10deg] text-slate-900/20 md:block"><UsersRound size={32} strokeWidth={1.5} /></div>
+      <div className="absolute bottom-[18%] left-[15%] hidden rotate-[8deg] text-slate-900/20 md:block"><Route size={32} strokeWidth={1.5} /></div>
+      <div className="absolute right-[19%] bottom-[12%] hidden h-24 w-24 border-t-2 border-dotted border-slate-900/15 rotate-[-25deg] md:block" />
 
       <div className="relative w-full max-w-md">
         {/* Logo header */}
         <div className="flex flex-col items-center mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <Logo size={48} className="text-white" />
+            <Logo size={48} className="text-sky-700" />
           </div>
-          <h1 className="text-white font-bold text-xl tracking-tight">Dhaanish Ahmed</h1>
-          <p className="text-white/40 text-xs font-medium tracking-widest uppercase">
-            Institute of Technology
-          </p>
+          <h1 className="text-slate-900 font-extrabold text-2xl tracking-tight">Mento</h1>
+          <p className="text-slate-500 text-xs font-bold tracking-[0.18em] uppercase">Guidance that moves you forward</p>
         </div>
 
         {/* Auth card */}
-        <div className="bg-neutral-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 animate-slideUp">
+        <div className="glass-surface rounded-[1.75rem] p-6 sm:p-8 animate-slideUp">
           <div className="flex items-center gap-2 mb-6">
-            <Sparkles className="text-white/60" size={18} />
-            <h2 className="text-white font-bold text-lg">
+            <Sparkles className="text-sky-600" size={18} />
+            <h2 className="text-slate-800 font-extrabold text-lg">
               {mode === 'login' ? 'Welcome Back' : 'Create Account'}
             </h2>
           </div>
 
           {/* Tab switcher */}
-          <div className="flex gap-1 p-1 bg-neutral-800 rounded-lg mb-6">
+          <div className="flex gap-1 p-1 bg-sky-100/70 rounded-xl mb-6">
             <button
               onClick={() => { setMode('login'); setError(null); }}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
@@ -128,7 +131,7 @@ export function AuthPage() {
 
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">I am a</label>
+                <label className="block text-sm font-semibold text-slate-600 mb-2">I am a</label>
                 <div className="grid grid-cols-2 gap-2">
                   {roleOptions.map((option) => {
                     const Icon = option.icon;
@@ -139,8 +142,8 @@ export function AuthPage() {
                         onClick={() => setRole(option.value)}
                         className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all ${
                           role === option.value
-                            ? 'border-white bg-white/10 text-white'
-                            : 'border-white/10 text-white/40 hover:border-white/20 hover:text-white/60'
+                            ? 'border-sky-500 bg-white text-sky-800 shadow-sm'
+                            : 'border-sky-900/10 text-slate-500 hover:border-sky-300 hover:bg-white/60'
                         }`}
                       >
                         <Icon size={20} />
@@ -149,7 +152,7 @@ export function AuthPage() {
                     );
                   })}
                 </div>
-                <p className="text-xs text-white/40 mt-2">
+                <p className="text-xs text-slate-500 mt-2">
                   {roleOptions.find((option) => option.value === role)?.desc}
                   {role === 'mentor' && ' Mentor profiles require administrator approval.'}
                 </p>
@@ -157,7 +160,7 @@ export function AuthPage() {
             )}
 
             {error && (
-              <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              <div className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
                 {error}
               </div>
             )}
@@ -169,9 +172,10 @@ export function AuthPage() {
           </form>
         </div>
 
-        <p className="text-center text-white/30 text-xs mt-6">
-          Mentor-Student Connection Platform
-        </p>
+        <div className="mt-5 flex items-center justify-between px-1 text-xs font-semibold text-slate-500">
+          <button type="button" onClick={onBackToLanding} className="transition hover:text-sky-700">Back to overview</button>
+          <button type="button" onClick={() => setError('Password reset is available through your institute administrator.')} className="transition hover:text-sky-700">Forgot password?</button>
+        </div>
       </div>
     </div>
   );
